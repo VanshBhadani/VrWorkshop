@@ -1,0 +1,235 @@
+Presentation Draft: Movement & Debugging in WebXR
+Session: Movement Logic and General Debugging
+Time: 9:30 AM - 11:00 AM (90 minutes)
+Audience: Third-year university students with basic JavaScript knowledge.
+Slide 1: Title Slide
+Title: Inside the Frame: Movement & Debugging
+Subtitle: Bringing Your WebXR Worlds to Life
+Your Name/Facilitator: Team Member 2
+Date: 22 August 2025
+Slide 2: Agenda
+What We'll Cover Today (90 Mins)
+Part 1: Movement Logic (40 mins)
+What is VR Locomotion?
+Implementing Controller-Based Movement
+Creating a Teleportation System
+A Quick Look at Collision Detection
+Part 2: General Debugging (40 mins)
+Why is Debugging in VR Tricky?
+Essential Debugging Tools
+Solving Common Bugs & Glitches
+Hands-On & Q&A (10 mins)
+Slide 3: Quick Recap: Where We Are
+Yesterday (Day 1), we learned how to:
+Set up our development environment.
+Create a basic 3D scene with Three.js.
+Import models from Blender and Open Brush.
+Launch a simple "Hello, World!" experience in WebXR.
+Today, we're making it interactive! Our static scene will become a world your users can actually move around in.
+Part 1: Movement Logic
+Slide 4: What is Movement in VR? (Locomotion)
+Locomotion is simply how a user moves through a virtual space.
+The Goal: Create an experience that is intuitive and comfortable.
+The Challenge: Bad locomotion can cause motion sickness! 🤢
+Slide 5: Common Types of VR Locomotion
+Room-Scale: The user physically walks around in their play space.
+Pros: Most immersive, no motion sickness.
+Cons: Limited by the user's physical room size.
+Teleportation: Point to a location and instantly appear there.
+Pros: Very comfortable, no motion sickness, great for large worlds.
+Cons: Can feel less immersive to some.
+Artificial / Smooth Locomotion: Using the controller's joystick or trackpad to "glide" or "walk."
+Pros: Familiar to gamers, feels continuous.
+Cons: The leading cause of motion sickness if not done well!
+Slide 6: The Player Rig: A Core Concept
+Rule #1: Don't move the camera directly!
+Why? The WebXR system is constantly updating the camera's position and rotation based on the user's head movement. If you also try to move it, things get messy and jittery.
+The Solution: The "Player Rig" (or "Camera Rig").
+Create a parent THREE.Group or THREE.Object3D.
+Add the camera and the controllers to this group.
+To move the player, you move the entire rig. The headset's tracking will still work perfectly relative to the rig's new position.
+// Conceptual Code
+const playerRig = new THREE.Group();
+scene.add(playerRig);
+
+// Add camera and controllers to the rig
+playerRig.add(camera);
+playerRig.add(controller1);
+playerRig.add(controller2);
+
+// Now, to move the player forward:
+playerRig.position.z -= 0.1; // Moves the whole setup!
+
+
+Slide 7: Listening to Controller Input
+How do we know when the user presses a button or moves a joystick?
+WebXR provides XRInputSource objects, which represent your controllers.
+We can add event listeners to the controllers to detect actions.
+// In your setup code
+const controller = renderer.xr.getController(0); // Gets the first controller
+
+// Listen for the trigger press
+controller.addEventListener('selectstart', onSelectStart);
+
+// Listen for the trigger release
+controller.addEventListener('selectend', onSelectEnd);
+
+function onSelectStart() {
+    // User squeezed the trigger!
+    console.log("Trigger pressed!");
+}
+
+
+Slide 8: Implementing Smooth Locomotion
+Let's make the player move forward when they push the joystick.
+The Logic (inside your animate or render loop):
+Check if a controller's joystick (axes) is being pushed.
+Get the direction the controller is pointing.
+Apply that direction to the player rig's position.
+Crucially: Use the delta time to ensure movement is smooth and not tied to the frame rate.
+Slide 9: Smooth Locomotion - Code Example
+// In your animate/render loop
+function animate(timestamp, frame) {
+    const delta = clock.getDelta(); // Time in seconds since last frame
+
+    if (controller.gamepad) { // Check if gamepad data is available
+        const joystick = controller.gamepad.axes; // Array [x, y, x, y]
+        const joystickY = joystick[3]; // Usually the second joystick's Y-axis
+
+        if (joystickY < -0.8) { // If joystick is pushed forward
+            const speed = 2; // meters per second
+
+            // Get controller direction
+            const direction = new THREE.Vector3();
+            controller.getWorldDirection(direction);
+
+            // Move the player rig
+            playerRig.position.addScaledVector(direction, -speed * delta);
+        }
+    }
+    renderer.render(scene, camera);
+}
+
+
+Note: The addScaledVector is a clean way to move in a direction by a certain amount. The negative sign is used because the controller "points" out of the screen (negative Z).
+Slide 10: Implementing Teleportation
+This is a two-step process:
+Aiming: Show the user where they can teleport. This is usually done by casting a ray from the controller and drawing a curve or placing a marker where it hits the ground.
+Executing: When the user releases the button, move the player rig to the marker's position.
+Slide 11: Teleportation - Using a Raycaster
+A THREE.Raycaster lets us shoot a virtual laser beam from a point in a certain direction to see what it hits.
+The Logic:
+Create a Raycaster.
+In the render loop, set its origin and direction from the controller.
+Check for intersections with "teleportable" surfaces (like the floor).
+If it hits something, show a marker at the intersection point.
+On button release, set playerRig.position to that point.
+Slide 12: Teleportation - Code Example
+const raycaster = new THREE.Raycaster();
+const teleportMarker = new THREE.Mesh(...); // A ring or circle mesh
+teleportMarker.visible = false;
+scene.add(teleportMarker);
+
+// In the animate loop...
+function aimTeleport() {
+    const origin = controller.position;
+    const direction = new THREE.Vector3(0, -1, 0); // Pointing down from controller
+    // For a more realistic aim, get the controller's actual direction
+
+    raycaster.set(origin, direction);
+    const intersects = raycaster.intersectObjects([floor]); // Check against floor
+
+    if (intersects.length > 0) {
+        teleportMarker.visible = true;
+        teleportMarker.position.copy(intersects[0].point);
+    } else {
+        teleportMarker.visible = false;
+    }
+}
+
+// In your 'selectend' event listener for the controller
+function onTeleport() {
+    if (teleportMarker.visible) {
+        playerRig.position.copy(teleportMarker.position);
+    }
+}
+
+
+Slide 13: Quick Look: Collision Detection
+What stops the user from walking through walls? Collision Detection.
+This can be a very complex topic, often requiring a full physics engine (Cannon.js, Rapier).
+A Simple Approach: Bounding Boxes.
+Imagine every object, including the player, is inside an invisible box (THREE.Box3).
+Before you move the player, you can check: "Will the player's box overlap with a wall's box?"
+If playerBox.intersectsBox(wallBox), then you cancel the movement.
+This is a great next step to explore after you've mastered movement!
+Part 2: General Debugging
+Slide 14: Why is Debugging in VR Hard?
+You can't easily see your code and the VR view at the same time.
+Taking the headset on and off is slow and tedious.
+The traditional console isn't visible inside the headset.
+Errors can be subtle visual glitches, not just crashes.
+Slide 15: Tool #1: The Browser Console
+Your first and best friend!
+Use console.log() for everything!
+console.log('Player Position:', playerRig.position);
+console.log('Controller Object:', controller);
+console.log('Did my function run?');
+Pro Tip: Remote Debugging. Use your browser's remote debugging tools (e.g., chrome://inspect) to see the console from a connected headset like a Meta Quest.
+Slide 16: Tool #2: Three.js Visual Helpers
+Don't guess where things are. Visualize them!
+Three.js has built-in helpers you can add to your scene to make invisible things visible.
+const axesHelper = new THREE.AxesHelper(5); scene.add(axesHelper);
+Shows the X (red), Y (green), and Z (blue) axes. Invaluable for orientation issues.
+const boxHelper = new THREE.Box3Helper(myObjectBox, 0xffff00); scene.add(boxHelper);
+Draws a yellow box around your object's bounding box. Perfect for debugging collisions.
+const gridHelper = new THREE.GridHelper(10, 10); scene.add(gridHelper);
+Creates a 10x10 grid on the floor. Helps with scale and positioning.
+Slide 17: Common Bug #1: "My object is black!"
+
+
+Possible Causes & Solutions:
+No Lights: You forgot to add lights to your scene! Add an AmbientLight (for general light) and a DirectionalLight (for shadows).
+Flipped Normals: The "faces" of your model are pointing inwards. This is a common issue with models from Blender. In Blender, go to Edit Mode, select all faces, and recalculate normals (Shift + N).
+Incorrect Material: Some materials, like MeshBasicMaterial, don't react to light. Use MeshStandardMaterial or MeshLambertMaterial if you want lighting effects.
+Slide 18: Common Bug #2: "I can't see anything!" (Blank Screen)
+Possible Causes & Solutions:
+Camera Position: Is your camera inside another object? Or is it at the same position as the object you're trying to see? Log the camera and object positions!
+Camera Clipping Plane: The camera has near and far properties. If an object is closer than near or farther than far, it won't be rendered. Try camera.near = 0.1; camera.far = 100;.
+Forgot to scene.add(myObject): It happens to everyone. Double-check that your object was actually added to the scene.
+Slide 19: Common Bug #3: "My movement is super fast/jittery!"
+The Cause: You have frame-rate dependent movement. Your code moves an object by a fixed amount each frame. A 90Hz headset will move the object 50% faster than a 60Hz one!
+The Solution: Use the delta time.
+Create a THREE.Clock at the start of your app.
+In your animate loop, call clock.getDelta() to get the time (in seconds) since the last frame.
+Multiply your movement speed by this delta.
+// BAD: Frame-rate dependent
+player.position.x += 0.01;
+
+// GOOD: Frame-rate INDEPENDENT
+const speed = 1; // 1 unit per second
+player.position.x += speed * delta;
+
+
+Slide 20: Summary & Key Takeaways
+Movement:
+Always use a Player Rig to move the user. Never move the camera directly.
+Choose a locomotion style (Teleport, Smooth) that fits your experience and prioritizes comfort.
+Use the delta time from THREE.Clock for smooth, frame-rate independent movement.
+Debugging:
+console.log() is your best friend. Use it generously.
+Use Visual Helpers (AxesHelper, Box3Helper) to see what's happening in your scene.
+When stuck, check the basics: Lights, Camera Position, and scene.add().
+Slide 21: Hands-On Time! (10 mins)
+Challenge: Let's go back to the project from Day 1.
+Your Task:
+Create a playerRig and add the camera to it.
+Add a GridHelper to the scene so you can see the floor plane.
+Implement a simple teleportation system that moves the playerRig to a point on the grid when you press the controller's trigger.
+Don't worry about the aiming curve for now, just focus on making the raycaster work and moving the rig!
+Slide 22: Q&A and Resources
+Questions?
+Useful Links:
+Three.js Documentation: https://threejs.org/docs/
+WebXR Samples: https://immersive-web.github.io/webxr-samples/
+MDN WebXR Docs: https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API

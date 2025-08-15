@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside the Frame: Movement & Debugging</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .slide {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .slide.active {
+            display: flex;
+            z-index: 10;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* Simple syntax highlighting */
+        pre {
+            background-color: #1E293B;
+            color: #E2E8F0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        code .keyword { color: #93C5FD; }
+        code .function { color: #A7F3D0; }
+        code .comment { color: #6B7280; }
+        code .string { color: #FDE047; }
+        code .number { color: #FDBA74; }
+        code .operator { color: #F9A8D4; }
+    </style>
+</head>
+<body class="flex flex-col h-screen justify-center items-center p-4">
+
+    <div id="presentation-container" class="w-full max-w-5xl aspect-video bg-white rounded-lg shadow-2xl relative overflow-hidden">
+        <!-- Slides will be injected here by JavaScript -->
+    </div>
+
+    <div class="mt-4 flex items-center justify-between w-full max-w-5xl">
+        <div id="slide-counter" class="text-gray-600 text-sm font-medium">Slide 1 / 22</div>
+        <div class="flex items-center space-x-2">
+            <button id="prev-btn" class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                &larr; Prev
+            </button>
+            <button id="next-btn" class="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Next &rarr;
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const slidesData = [
+            {
+                type: 'title',
+                title: 'Inside the Frame: Movement & Debugging',
+                subtitle: 'Bringing Your WebXR Worlds to Life',
+                facilitator: 'Team Member 2',
+                date: '22 August 2025'
+            },
+            {
+                type: 'list',
+                title: 'Agenda (90 Mins)',
+                sections: [
+                    {
+                        heading: 'Part 1: Movement Logic (40 mins)',
+                        items: ['What is VR Locomotion?', 'Implementing Controller-Based Movement', 'Creating a Teleportation System', 'A Quick Look at Collision Detection']
+                    },
+                    {
+                        heading: 'Part 2: General Debugging (40 mins)',
+                        items: ['Why is Debugging in VR Tricky?', 'Essential Debugging Tools', 'Solving Common Bugs & Glitches']
+                    },
+                    {
+                        heading: 'Hands-On & Q&A (10 mins)',
+                        items: []
+                    }
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Quick Recap: Where We Are',
+                sections: [
+                    {
+                        heading: 'Yesterday (Day 1), we learned how to:',
+                        items: ['Set up our development environment.', 'Create a basic 3D scene with Three.js.', 'Import models from Blender and Open Brush.', 'Launch a simple "Hello, World!" experience in WebXR.']
+                    }
+                ],
+                footer: "Today, we're making it interactive! Our static scene will become a world your users can actually move around in."
+            },
+            {
+                type: 'simple',
+                title: 'Part 1: Movement Logic',
+                heading: 'What is Movement in VR? (Locomotion)',
+                points: [
+                    '<strong>Locomotion</strong> is simply how a user moves through a virtual space.',
+                    '<strong>The Goal:</strong> Create an experience that is intuitive and comfortable.',
+                    '<strong>The Challenge:</strong> Bad locomotion can cause <strong>motion sickness</strong>! 🤢'
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Common Types of VR Locomotion',
+                sections: [
+                    {
+                        heading: '1. Room-Scale',
+                        items: ['<strong>Pros:</strong> Most immersive, no motion sickness.', '<strong>Cons:</strong> Limited by the user\'s physical room size.']
+                    },
+                    {
+                        heading: '2. Teleportation',
+                        items: ['<strong>Pros:</strong> Very comfortable, no motion sickness, great for large worlds.', '<strong>Cons:</strong> Can feel less immersive to some.']
+                    },
+                    {
+                        heading: '3. Artificial / Smooth Locomotion',
+                        items: ['<strong>Pros:</strong> Familiar to gamers, feels continuous.', '<strong>Cons:</strong> The leading cause of motion sickness if not done well!']
+                    }
+                ]
+            },
+            {
+                type: 'code',
+                title: 'The Player Rig: A Core Concept',
+                points: [
+                    '<strong>Rule #1: Don\'t move the camera directly!</strong>',
+                    'The WebXR system constantly updates the camera based on head movement. Fighting it causes jitter.',
+                    '<strong>The Solution: The "Player Rig".</strong> Create a parent <code>THREE.Group</code>, add the camera and controllers to it, and move the entire rig.'
+                ],
+                code: `
+<span class="comment">// Conceptual Code</span>
+<span class="keyword">const</span> playerRig <span class="operator">=</span> <span class="keyword">new</span> <span class="function">THREE.Group</span>();
+<span class="function">scene.add</span>(playerRig);
+
+<span class="comment">// Add camera and controllers to the rig</span>
+<span class="function">playerRig.add</span>(camera);
+<span class="function">playerRig.add</span>(controller1);
+<span class="function">playerRig.add</span>(controller2);
+
+<span class="comment">// Now, to move the player forward:</span>
+playerRig.position.z <span class="operator">-=</span> <span class="number">0.1</span>; <span class="comment">// Moves the whole setup!</span>
+`
+            },
+            {
+                type: 'code',
+                title: 'Listening to Controller Input',
+                points: [
+                    'WebXR provides <strong><code>XRInputSource</code></strong> objects, which represent your controllers.',
+                    'We can add event listeners to the controllers to detect actions like trigger presses.'
+                ],
+                code: `
+<span class="comment">// In your setup code</span>
+<span class="keyword">const</span> controller <span class="operator">=</span> renderer.xr.<span class="function">getController</span>(<span class="number">0</span>); <span class="comment">// Gets the first controller</span>
+
+<span class="comment">// Listen for the trigger press</span>
+controller.<span class="function">addEventListener</span>(<span class="string">'selectstart'</span>, onSelectStart);
+
+<span class="comment">// Listen for the trigger release</span>
+controller.<span class="function">addEventListener</span>(<span class="string">'selectend'</span>, onSelectEnd);
+
+<span class="keyword">function</span> <span class="function">onSelectStart</span>() {
+    <span class="comment">// User squeezed the trigger!</span>
+    console.<span class="function">log</span>(<span class="string">"Trigger pressed!"</span>);
+}
+`
+            },
+            {
+                type: 'list',
+                title: 'Implementing Smooth Locomotion',
+                sections: [
+                    {
+                        heading: 'The Logic (inside your `animate` or `render` loop):',
+                        items: [
+                            'Check if a controller\'s joystick (axes) is being pushed.',
+                            'Get the direction the controller is pointing.',
+                            'Apply that direction to the <strong>player rig\'s</strong> position.',
+                            '<strong>Crucially:</strong> Use the `delta` time to ensure movement is smooth and not tied to the frame rate.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'code',
+                title: 'Smooth Locomotion - Code Example',
+                points: [
+                    'The <code>addScaledVector</code> method is a clean way to move in a direction by a certain amount.',
+                    'The negative sign is used because the controller "points" out of the screen (negative Z).'
+                ],
+                code: `
+<span class="comment">// In your animate/render loop</span>
+<span class="keyword">function</span> <span class="function">animate</span>(timestamp, frame) {
+    <span class="keyword">const</span> delta <span class="operator">=</span> clock.<span class="function">getDelta</span>(); <span class="comment">// Time in seconds since last frame</span>
+
+    <span class="keyword">if</span> (controller.gamepad) { <span class="comment">// Check if gamepad data is available</span>
+        <span class="keyword">const</span> joystickY <span class="operator">=</span> controller.gamepad.axes[<span class="number">3</span>]; <span class="comment">// Usually the second joystick's Y-axis</span>
+
+        <span class="keyword">if</span> (joystickY <span class="operator">&lt;</span> <span class="number">-0.8</span>) { <span class="comment">// If joystick is pushed forward</span>
+            <span class="keyword">const</span> speed <span class="operator">=</span> <span class="number">2</span>; <span class="comment">// meters per second</span>
+            <span class="keyword">const</span> direction <span class="operator">=</span> <span class="keyword">new</span> <span class="function">THREE.Vector3</span>();
+            controller.<span class="function">getWorldDirection</span>(direction);
+
+            <span class="comment">// Move the player rig</span>
+            playerRig.position.<span class="function">addScaledVector</span>(direction, <span class="operator">-</span>speed <span class="operator">*</span> delta);
+        }
+    }
+    renderer.<span class="function">render</span>(scene, camera);
+}
+`
+            },
+            {
+                type: 'list',
+                title: 'Implementing Teleportation',
+                sections: [
+                    {
+                        heading: 'This is a two-step process:',
+                        items: [
+                            '<strong>1. Aiming:</strong> Show the user where they <em>can</em> teleport. This is usually done by casting a ray from the controller and placing a marker where it hits the ground.',
+                            '<strong>2. Executing:</strong> When the user releases the button, move the player rig to the marker\'s position.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Teleportation - Using a Raycaster',
+                points: ['A <strong><code>THREE.Raycaster</code></strong> lets us shoot a virtual laser beam from a point in a certain direction to see what it hits.'],
+                sections: [
+                    {
+                        heading: 'The Logic:',
+                        items: [
+                            'Create a <code>Raycaster</code>.',
+                            'In the render loop, set its origin and direction from the controller.',
+                            'Check for intersections with "teleportable" surfaces (like the floor).',
+                            'If it hits something, show a marker at the intersection point.',
+                            'On button release, set <code>playerRig.position</code> to that point.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'code',
+                title: 'Teleportation - Code Example',
+                code: `
+<span class="keyword">const</span> raycaster <span class="operator">=</span> <span class="keyword">new</span> <span class="function">THREE.Raycaster</span>();
+<span class="keyword">const</span> teleportMarker <span class="operator">=</span> <span class="keyword">new</span> <span class="function">THREE.Mesh</span>(...); <span class="comment">// A ring or circle mesh</span>
+teleportMarker.visible <span class="operator">=</span> <span class="keyword">false</span>;
+<span class="function">scene.add</span>(teleportMarker);
+
+<span class="comment">// In the animate loop...</span>
+<span class="keyword">function</span> <span class="function">aimTeleport</span>() {
+    <span class="keyword">const</span> origin <span class="operator">=</span> controller.position;
+    <span class="keyword">const</span> direction <span class="operator">=</span> <span class="keyword">new</span> <span class="function">THREE.Vector3</span>(<span class="number">0</span>, <span class="operator">-</span><span class="number">1</span>, <span class="number">0</span>); <span class="comment">// Pointing down</span>
+    raycaster.<span class="function">set</span>(origin, direction);
+    <span class="keyword">const</span> intersects <span class="operator">=</span> raycaster.<span class="function">intersectObjects</span>([floor]);
+
+    <span class="keyword">if</span> (intersects.length <span class="operator">></span> <span class="number">0</span>) {
+        teleportMarker.visible <span class="operator">=</span> <span class="keyword">true</span>;
+        teleportMarker.position.<span class="function">copy</span>(intersects[<span class="number">0</span>].point);
+    } <span class="keyword">else</span> {
+        teleportMarker.visible <span class="operator">=</span> <span class="keyword">false</span>;
+    }
+}
+
+<span class="comment">// In your 'selectend' event listener</span>
+<span class="keyword">function</span> <span class="function">onTeleport</span>() {
+    <span class="keyword">if</span> (teleportMarker.visible) {
+        playerRig.position.<span class="function">copy</span>(teleportMarker.position);
+    }
+}
+`
+            },
+            {
+                type: 'simple',
+                title: 'Quick Look: Collision Detection',
+                heading: 'What stops the user from walking through walls?',
+                points: [
+                    'This can be a very complex topic, often requiring a full physics engine (<code>Cannon.js</code>, <code>Rapier</code>).',
+                    '<strong>A Simple Approach: Bounding Boxes.</strong>',
+                    'Imagine every object, including the player, is inside an invisible box (<code>THREE.Box3</code>).',
+                    'Before you move, check: "Will the player\'s box overlap with a wall\'s box?"',
+                    'If <code>playerBox.intersectsBox(wallBox)</code>, then you cancel the movement.'
+                ]
+            },
+            {
+                type: 'simple',
+                title: 'Part 2: General Debugging',
+                heading: 'Why is Debugging in VR Hard?',
+                points: [
+                    'You can\'t easily see your code and the VR view at the same time.',
+                    'Taking the headset on and off is slow and tedious.',
+                    'The traditional <code>console</code> isn\'t visible inside the headset.',
+                    'Errors can be subtle visual glitches, not just crashes.'
+                ]
+            },
+            {
+                type: 'simple',
+                title: 'Tool #1: The Browser Console',
+                heading: 'Your first and best friend!',
+                points: [
+                    'Use <code>console.log()</code> for everything!',
+                    '<code>console.log(\'Player Position:\', playerRig.position);</code>',
+                    '<code>console.log(\'Controller Object:\', controller);</code>',
+                    '<strong>Pro Tip: Remote Debugging.</strong> Use your browser\'s remote debugging tools (e.g., <code>chrome://inspect</code>) to see the console from a connected headset.'
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Tool #2: Three.js Visual Helpers',
+                heading: 'Don\'t guess where things are. Visualize them!',
+                sections: [
+                    {
+                        heading: '<code>AxesHelper</code>',
+                        items: ['Shows the X (red), Y (green), and Z (blue) axes. Invaluable for orientation issues.']
+                    },
+                    {
+                        heading: '<code>Box3Helper</code>',
+                        items: ['Draws a yellow box around your object\'s bounding box. Perfect for debugging collisions.']
+                    },
+                    {
+                        heading: '<code>GridHelper</code>',
+                        items: ['Creates a 10x10 grid on the floor. Helps with scale and positioning.']
+                    }
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Common Bug #1: "My object is black!"',
+                sections: [
+                    {
+                        heading: 'Possible Causes & Solutions:',
+                        items: [
+                            '<strong>No Lights:</strong> You forgot to add lights! Add an <code>AmbientLight</code> and a <code>DirectionalLight</code>.',
+                            '<strong>Flipped Normals:</strong> The "faces" of your model are pointing inwards. Recalculate normals in Blender (<code>Shift + N</code>).',
+                            '<strong>Incorrect Material:</strong> <code>MeshBasicMaterial</code> doesn\'t react to light. Use <code>MeshStandardMaterial</code> instead.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Common Bug #2: "I can\'t see anything!"',
+                sections: [
+                    {
+                        heading: 'Possible Causes & Solutions:',
+                        items: [
+                            '<strong>Camera Position:</strong> Is your camera inside another object? Log the camera and object positions!',
+                            '<strong>Camera Clipping Plane:</strong> The object might be too close (<code>near</code>) or too far (<code>far</code>) to be rendered.',
+                            '<strong>Forgot to <code>scene.add(myObject)</code>:</strong> It happens to everyone. Double-check your code.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'code',
+                title: 'Common Bug #3: "My movement is super fast/jittery!"',
+                points: [
+                    '<strong>The Cause:</strong> Frame-rate dependent movement. A 90Hz headset will move 50% faster than a 60Hz one!',
+                    '<strong>The Solution: Use the `delta` time.</strong> Multiply your movement speed by the time since the last frame.'
+                ],
+                code: `
+<span class="comment">// BAD: Frame-rate dependent</span>
+player.position.x <span class="operator">+=</span> <span class="number">0.01</span>;
+
+<span class="comment">// GOOD: Frame-rate INDEPENDENT</span>
+<span class="keyword">const</span> speed <span class="operator">=</span> <span class="number">1</span>; <span class="comment">// 1 unit per second</span>
+player.position.x <span class="operator">+=</span> speed <span class="operator">*</span> delta;
+`
+            },
+            {
+                type: 'list',
+                title: 'Summary & Key Takeaways',
+                sections: [
+                    {
+                        heading: 'Movement:',
+                        items: ['Always use a <strong>Player Rig</strong> to move the user. Never move the camera directly.', 'Choose a locomotion style that prioritizes comfort.', 'Use the <code>delta</code> time for smooth, frame-rate independent movement.']
+                    },
+                    {
+                        heading: 'Debugging:',
+                        items: ['<code>console.log()</code> is your best friend. Use it generously.', 'Use <strong>Visual Helpers</strong> to see what\'s happening in your scene.', 'When stuck, check the basics: Lights, Camera Position, and <code>scene.add()</code>.']
+                    }
+                ]
+            },
+            {
+                type: 'list',
+                title: 'Hands-On Time! (10 mins)',
+                heading: 'Challenge: Let\'s go back to the project from Day 1.',
+                sections: [
+                    {
+                        heading: 'Your Task:',
+                        items: [
+                            'Create a <code>playerRig</code> and add the camera to it.',
+                            'Add a <code>GridHelper</code> to the scene so you can see the floor plane.',
+                            'Implement a simple teleportation system that moves the <code>playerRig</code> when you press the trigger.'
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'simple',
+                title: 'Q&A and Resources',
+                heading: 'Questions?',
+                points: [
+                    '<strong>Three.js Docs:</strong> https://threejs.org/docs/',
+                    '<strong>WebXR Samples:</strong> https://immersive-web.github.io/webxr-samples/',
+                    '<strong>MDN WebXR Docs:</strong> https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API'
+                ]
+            }
+        ];
+
+        const presentationContainer = document.getElementById('presentation-container');
+        const slideCounter = document.getElementById('slide-counter');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        let currentSlide = 0;
+
+        function createSlideHTML(slideData) {
+            let content = '';
+            if (slideData.type === 'title') {
+                content = `
+                    <div class="m-auto text-center">
+                        <h1 class="text-5xl md:text-6xl font-bold text-gray-800">${slideData.title}</h1>
+                        <p class="text-2xl text-gray-600 mt-4">${slideData.subtitle}</p>
+                        <div class="mt-12 text-lg text-gray-500">
+                            <p>${slideData.facilitator}</p>
+                            <p>${slideData.date}</p>
+                        </div>
+                    </div>`;
+            } else if (slideData.type === 'simple') {
+                 content = `
+                    <div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">${slideData.title}</h2>
+                        <h3 class="text-2xl font-semibold text-gray-700 mb-4">${slideData.heading}</h3>
+                        <ul class="space-y-3 text-lg text-gray-600 list-disc pl-5">
+                            ${slideData.points.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    </div>`;
+            } else if (slideData.type === 'list') {
+                content = `
+                    <div>
+                        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">${slideData.title}</h2>
+                        ${slideData.heading ? `<h3 class="text-2xl font-semibold text-gray-700 mb-4">${slideData.heading}</h3>` : ''}
+                        <div class="space-y-4 text-lg">
+                            ${slideData.sections.map(sec => `
+                                <div class="pl-2">
+                                    <h4 class="font-semibold text-gray-700">${sec.heading}</h4>
+                                    <ul class="list-disc pl-8 text-gray-600 space-y-2 mt-2">
+                                        ${sec.items.map(item => `<li>${item}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${slideData.footer ? `<p class="mt-8 text-xl font-semibold text-gray-700">${slideData.footer}</p>` : ''}
+                    </div>`;
+            } else if (slideData.type === 'code') {
+                content = `
+                    <div class="grid md:grid-cols-2 gap-8 h-full items-center">
+                        <div class="text-lg">
+                            <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">${slideData.title}</h2>
+                            <ul class="space-y-3 text-gray-600 list-disc pl-5">
+                                ${slideData.points ? slideData.points.map(p => `<li>${p}</li>`).join('') : ''}
+                            </ul>
+                        </div>
+                        <div class="h-full flex items-center">
+                            <pre><code class="language-js">${slideData.code}</code></pre>
+                        </div>
+                    </div>`;
+            }
+
+            const slideEl = document.createElement('div');
+            slideEl.className = 'slide flex flex-col justify-center p-8 md:p-12';
+            slideEl.innerHTML = content;
+            return slideEl;
+        }
+
+        function renderSlides() {
+            // Clear any existing content
+            presentationContainer.innerHTML = '';
+            slidesData.forEach(slide => {
+                presentationContainer.appendChild(createSlideHTML(slide));
+            });
+        }
+
+        function showSlide(index) {
+            const allSlides = document.querySelectorAll('.slide');
+            // Hide all slides first
+            allSlides.forEach((slide) => {
+                slide.classList.remove('active');
+                slide.style.display = 'none';
+            });
+            // Show only the current slide
+            if (allSlides[index]) {
+                allSlides[index].classList.add('active');
+                allSlides[index].style.display = 'flex';
+            }
+            currentSlide = index;
+            updateControls();
+        }
+
+        function updateControls() {
+            slideCounter.textContent = `Slide ${currentSlide + 1} / ${slidesData.length}`;
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === slidesData.length - 1;
+        }
+
+        function nextSlide() {
+            if (currentSlide < slidesData.length - 1) {
+                showSlide(currentSlide + 1);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                showSlide(currentSlide - 1);
+            }
+        }
+
+        nextBtn.addEventListener('click', nextSlide);
+        prevBtn.addEventListener('click', prevSlide);
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                prevSlide();
+            }
+        });
+
+        // Initial setup
+        renderSlides();
+        showSlide(0);
+
+    </script>
+</body>
+</html>
