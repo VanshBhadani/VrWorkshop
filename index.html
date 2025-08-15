@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Inside the Frame: Movement & Debugging in WebXR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -36,6 +38,41 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .slide-container {
+                min-height: calc(100vh - 140px);
+                max-height: calc(100vh - 140px);
+                margin: 0 8px;
+            }
+            
+            .floating-elements {
+                display: none; /* Hide floating elements on mobile for performance */
+            }
+            
+            /* Hide slide indicators on mobile to save space */
+            #slide-indicators {
+                display: none;
+            }
+            
+            /* Adjust navigation for mobile */
+            .mobile-nav {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 50;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .slide-container {
+                min-height: calc(100vh - 120px);
+                max-height: calc(100vh - 120px);
+                margin: 0 4px;
+            }
+        }
+        
         .code-block {
             background: #2d3748;
             border-radius: 12px;
@@ -47,6 +84,20 @@
             max-height: 350px;
             overflow-y: auto;
             overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        
+        /* Mobile code optimizations */
+        @media (max-width: 768px) {
+            .code-block {
+                max-height: 300px;
+            }
+            
+            .code-block pre {
+                max-height: 250px;
+                font-size: 0.75rem;
+                line-height: 1.4;
+            }
         }
         
         .gradient-text {
@@ -117,6 +168,28 @@
             transform: translateY(-5px);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
+        
+        /* Touch-friendly interactions */
+        @media (hover: none) and (pointer: coarse) {
+            .feature-card:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .feature-card:active {
+                transform: scale(0.98);
+                transition: transform 0.1s ease;
+            }
+            
+            .btn-primary:hover {
+                transform: none;
+                box-shadow: none;
+            }
+            
+            .btn-primary:active {
+                transform: scale(0.95);
+            }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -134,23 +207,23 @@
     </div>
 
     <!-- Main Content -->
-    <main class="flex-1 flex items-center justify-center p-4">
+    <main class="flex-1 flex items-center justify-center p-2 md:p-4">
         <div id="slide-container" class="slide-container w-full max-w-6xl min-h-[600px] max-h-[80vh] rounded-2xl shadow-2xl flex flex-col relative overflow-hidden">
             <!-- Slides will be injected here -->
         </div>
     </main>
 
     <!-- Navigation -->
-    <nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40">
-        <div class="bg-white/90 backdrop-blur-md rounded-full px-6 py-3 shadow-xl flex items-center space-x-4">
-            <button id="prev-btn" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 mobile-nav">
+        <div class="bg-white/90 backdrop-blur-md rounded-full px-4 md:px-6 py-2 md:py-3 shadow-xl flex items-center space-x-2 md:space-x-4">
+            <button id="prev-btn" class="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation">
+                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
-            <span id="slide-counter" class="text-sm font-medium text-gray-600 min-w-[80px] text-center">1 / 22</span>
-            <button id="next-btn" class="btn-primary p-2 rounded-full text-white transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span id="slide-counter" class="text-xs md:text-sm font-medium text-gray-600 min-w-[60px] md:min-w-[80px] text-center">1 / 22</span>
+            <button id="next-btn" class="btn-primary p-2 rounded-full text-white transition touch-manipulation">
+                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </button>
@@ -677,9 +750,12 @@ player.position.x += speed * delta;`
 
         let currentSlide = 0;
         const totalSlides = slidesData.length;
+        const isMobile = window.innerWidth <= 768;
 
-        // Create slide indicators
+        // Create slide indicators (only on desktop)
         function createIndicators() {
+            if (isMobile) return;
+            
             for (let i = 0; i < totalSlides; i++) {
                 const indicator = document.createElement('div');
                 indicator.className = 'w-2 h-8 bg-white/30 rounded cursor-pointer transition-all duration-300 hover:bg-white/50';
@@ -693,13 +769,13 @@ player.position.x += speed * delta;`
             switch (slide.type) {
                 case 'title':
                     return `
-                        <div class="flex-1 flex items-center justify-center text-center p-12">
+                        <div class="flex-1 flex items-center justify-center text-center p-6 md:p-12">
                             <div>
-                                <div class="vr-icon mx-auto mb-8">🥽</div>
-                                <h1 class="text-6xl font-bold gradient-text mb-4">${slide.title}</h1>
-                                <h2 class="text-4xl font-semibold text-gray-700 mb-6">${slide.subtitle}</h2>
-                                <p class="text-xl text-gray-600 mb-12">${slide.description}</p>
-                                <div class="text-lg text-gray-500">
+                                <div class="vr-icon mx-auto mb-6 md:mb-8 w-12 h-12 md:w-16 md:h-16 text-lg md:text-2xl">🥽</div>
+                                <h1 class="text-3xl md:text-6xl font-bold gradient-text mb-3 md:mb-4">${slide.title}</h1>
+                                <h2 class="text-xl md:text-4xl font-semibold text-gray-700 mb-4 md:mb-6">${slide.subtitle}</h2>
+                                <p class="text-sm md:text-xl text-gray-600 mb-8 md:mb-12">${slide.description}</p>
+                                <div class="text-sm md:text-lg text-gray-500">
                                     <p class="font-medium">${slide.facilitator}</p>
                                     <p>${slide.date}</p>
                                 </div>
@@ -709,22 +785,22 @@ player.position.x += speed * delta;`
 
                 case 'agenda':
                     return `
-                        <div class="p-12">
-                            <h1 class="text-4xl font-bold text-gray-800 mb-2">${slide.title}</h1>
-                            <p class="text-xl text-gray-600 mb-8">${slide.duration}</p>
-                            <div class="grid gap-6">
+                        <div class="p-4 md:p-12">
+                            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-2">${slide.title}</h1>
+                            <p class="text-lg md:text-xl text-gray-600 mb-6 md:mb-8">${slide.duration}</p>
+                            <div class="grid gap-4 md:gap-6">
                                 ${slide.parts.map((part, index) => `
-                                    <div class="feature-card p-6 rounded-xl">
-                                        <div class="flex items-center mb-4">
-                                            <div class="icon-circle w-8 h-8 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                                    <div class="feature-card p-4 md:p-6 rounded-xl">
+                                        <div class="flex items-center mb-3 md:mb-4">
+                                            <div class="icon-circle w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-white font-bold mr-3 md:mr-4 text-sm md:text-base">
                                                 ${index + 1}
                                             </div>
-                                            <h3 class="text-xl font-semibold text-gray-800">${part.title}</h3>
-                                            <span class="ml-auto text-sm bg-gray-100 px-3 py-1 rounded-full">${part.time}</span>
+                                            <h3 class="text-lg md:text-xl font-semibold text-gray-800">${part.title}</h3>
+                                            <span class="ml-auto text-xs md:text-sm bg-gray-100 px-2 md:px-3 py-1 rounded-full">${part.time}</span>
                                         </div>
                                         ${part.topics.length > 0 ? `
-                                            <ul class="space-y-2 ml-12">
-                                                ${part.topics.map(topic => `<li class="text-gray-600">• ${topic}</li>`).join('')}
+                                            <ul class="space-y-1 md:space-y-2 ml-9 md:ml-12">
+                                                ${part.topics.map(topic => `<li class="text-gray-600 text-sm md:text-base">• ${topic}</li>`).join('')}
                                             </ul>
                                         ` : ''}
                                     </div>
@@ -790,24 +866,24 @@ player.position.x += speed * delta;`
 
                 case 'comparison':
                     return `
-                        <div class="p-12">
-                            <h1 class="text-4xl font-bold text-gray-800 mb-8">${slide.title}</h1>
-                            <div class="space-y-6">
+                        <div class="p-4 md:p-12">
+                            <h1 class="text-2xl md:text-4xl font-bold text-gray-800 mb-6 md:mb-8">${slide.title}</h1>
+                            <div class="space-y-4 md:space-y-6">
                                 ${slide.items.map(item => `
-                                    <div class="feature-card p-6 rounded-xl">
-                                        <h3 class="text-xl font-semibold text-gray-800 mb-3">${item.title}</h3>
-                                        <p class="text-gray-600 mb-4">${item.description}</p>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="feature-card p-4 md:p-6 rounded-xl">
+                                        <h3 class="text-lg md:text-xl font-semibold text-gray-800 mb-3">${item.title}</h3>
+                                        <p class="text-gray-600 mb-4 text-sm md:text-base">${item.description}</p>
+                                        <div class="grid grid-cols-1 gap-4">
                                             <div>
-                                                <h4 class="font-semibold text-green-700 mb-2">✅ Pros:</h4>
+                                                <h4 class="font-semibold text-green-700 mb-2 text-sm md:text-base">✅ Pros:</h4>
                                                 <ul class="space-y-1">
-                                                    ${item.pros.map(pro => `<li class="text-green-600">• ${pro}</li>`).join('')}
+                                                    ${item.pros.map(pro => `<li class="text-green-600 text-sm md:text-base">• ${pro}</li>`).join('')}
                                                 </ul>
                                             </div>
                                             <div>
-                                                <h4 class="font-semibold text-red-700 mb-2">❌ Cons:</h4>
+                                                <h4 class="font-semibold text-red-700 mb-2 text-sm md:text-base">❌ Cons:</h4>
                                                 <ul class="space-y-1">
-                                                    ${item.cons.map(con => `<li class="text-red-600">• ${con}</li>`).join('')}
+                                                    ${item.cons.map(con => `<li class="text-red-600 text-sm md:text-base">• ${con}</li>`).join('')}
                                                 </ul>
                                             </div>
                                         </div>
@@ -819,22 +895,22 @@ player.position.x += speed * delta;`
 
                 case 'concept-code':
                     return `
-                        <div class="p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                        <div class="p-4 md:p-8 grid grid-cols-1 gap-4 md:gap-6 h-full">
                             <div class="flex flex-col justify-center">
-                                <h1 class="text-2xl font-bold text-gray-800 mb-4">${slide.title}</h1>
-                                ${slide.concept.rule ? `<div class="bg-red-50 p-3 rounded-lg mb-3 border-l-4 border-red-500">
-                                    <p class="font-semibold text-red-800 text-sm">${slide.concept.rule}</p>
+                                <h1 class="text-xl md:text-2xl font-bold text-gray-800 mb-3 md:mb-4">${slide.title}</h1>
+                                ${slide.concept.rule ? `<div class="bg-red-50 p-2 md:p-3 rounded-lg mb-2 md:mb-3 border-l-4 border-red-500">
+                                    <p class="font-semibold text-red-800 text-xs md:text-sm">${slide.concept.rule}</p>
                                 </div>` : ''}
-                                ${slide.concept.why ? `<p class="text-gray-600 mb-3 text-sm">${slide.concept.why}</p>` : ''}
-                                ${slide.concept.solution ? `<div class="bg-green-50 p-3 rounded-lg border-l-4 border-green-500">
-                                    <p class="font-semibold text-green-800 text-sm">${slide.concept.solution}</p>
+                                ${slide.concept.why ? `<p class="text-gray-600 mb-2 md:mb-3 text-xs md:text-sm">${slide.concept.why}</p>` : ''}
+                                ${slide.concept.solution ? `<div class="bg-green-50 p-2 md:p-3 rounded-lg border-l-4 border-green-500">
+                                    <p class="font-semibold text-green-800 text-xs md:text-sm">${slide.concept.solution}</p>
                                 </div>` : ''}
-                                ${slide.concept.description ? `<p class="text-gray-600 text-sm">${slide.concept.description}</p>` : ''}
+                                ${slide.concept.description ? `<p class="text-gray-600 text-xs md:text-sm">${slide.concept.description}</p>` : ''}
                             </div>
                             <div class="flex items-start">
                                 <div class="code-block w-full">
-                                    <div class="bg-gray-700 px-4 py-2 text-white text-sm font-medium">JavaScript</div>
-                                    <pre class="p-4"><code class="language-javascript">${slide.code}</code></pre>
+                                    <div class="bg-gray-700 px-3 md:px-4 py-2 text-white text-xs md:text-sm font-medium">JavaScript</div>
+                                    <pre class="p-3 md:p-4"><code class="language-javascript">${slide.code}</code></pre>
                                 </div>
                             </div>
                         </div>
@@ -865,20 +941,20 @@ player.position.x += speed * delta;`
 
                 case 'code-focused':
                     return `
-                        <div class="p-8">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-4">${slide.title}</h1>
+                        <div class="p-4 md:p-8">
+                            <h1 class="text-xl md:text-3xl font-bold text-gray-800 mb-3 md:mb-4">${slide.title}</h1>
                             ${slide.notes ? `
-                                <div class="mb-4">
+                                <div class="mb-3 md:mb-4">
                                     ${slide.notes.map(note => `
-                                        <div class="bg-blue-50 p-3 rounded-lg mb-2 border-l-4 border-blue-500">
-                                            <p class="text-blue-800 text-sm">${note}</p>
+                                        <div class="bg-blue-50 p-2 md:p-3 rounded-lg mb-2 border-l-4 border-blue-500">
+                                            <p class="text-blue-800 text-xs md:text-sm">${note}</p>
                                         </div>
                                     `).join('')}
                                 </div>
                             ` : ''}
                             <div class="code-block">
-                                <div class="bg-gray-700 px-4 py-2 text-white text-sm font-medium">JavaScript</div>
-                                <pre class="p-4"><code class="language-javascript">${slide.code}</code></pre>
+                                <div class="bg-gray-700 px-3 md:px-4 py-2 text-white text-xs md:text-sm font-medium">JavaScript</div>
+                                <pre class="p-3 md:p-4"><code class="language-javascript">${slide.code}</code></pre>
                             </div>
                         </div>
                     `;
@@ -1107,8 +1183,10 @@ player.position.x += speed * delta;`
             });
         }
 
-        // Update slide indicators
+        // Update slide indicators (only on desktop)
         function updateIndicators() {
+            if (isMobile) return;
+            
             const indicators = slideIndicators.children;
             for (let i = 0; i < indicators.length; i++) {
                 indicators[i].className = i === currentSlide 
@@ -1166,6 +1244,11 @@ player.position.x += speed * delta;`
         prevBtn.addEventListener('click', prevSlide);
 
         document.addEventListener('keydown', (e) => {
+            // Prevent keyboard navigation on mobile when virtual keyboard might be open
+            if (isMobile && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                return;
+            }
+            
             if (e.key === 'ArrowRight' || e.key === ' ') {
                 e.preventDefault();
                 nextSlide();
@@ -1181,15 +1264,39 @@ player.position.x += speed * delta;`
             }
         });
 
-        // Touch/swipe support
+        // Touch/swipe support with improved mobile handling
         let touchStartX = 0;
+        let touchStartY = 0;
+        let isSwiping = false;
+        
         slideContainer.addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
-        });
+            touchStartY = e.touches[0].clientY;
+            isSwiping = false;
+        }, { passive: true });
+
+        slideContainer.addEventListener('touchmove', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const diffX = touchStartX - touchX;
+            const diffY = touchStartY - touchY;
+            
+            // Only prevent default if horizontal swipe is more significant than vertical
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 20) {
+                e.preventDefault();
+                isSwiping = true;
+            }
+        }, { passive: false });
 
         slideContainer.addEventListener('touchend', (e) => {
+            if (!touchStartX || !isSwiping) return;
+            
             const touchEndX = e.changedTouches[0].clientX;
             const diff = touchStartX - touchEndX;
+            
+            // Minimum swipe distance
             if (Math.abs(diff) > 50) {
                 if (diff > 0) {
                     nextSlide();
@@ -1197,7 +1304,11 @@ player.position.x += speed * delta;`
                     prevSlide();
                 }
             }
-        });
+            
+            touchStartX = 0;
+            touchStartY = 0;
+            isSwiping = false;
+        }, { passive: true });
 
         // Initialize
         createIndicators();
