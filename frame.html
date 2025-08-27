@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inside the Frame: VR Workshop Plan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Harmony -->
+    <!-- Application Structure Plan: A tabbed, single-page application structure was chosen to organize the workshop information into logical, digestible sections: Schedule, Participants, and Outcomes. This is more user-friendly than a long, scrolling document. The default view is the schedule, as it's the primary information. Users can easily navigate to see who is involved or what the goals are. Interactive elements, like the clickable day toggles and the data chart, are used to present dense information clearly and engage the user. This structure prioritizes ease of navigation and quick access to key information. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Workshop Schedule -> Goal: Organize/Inform -> Viz: Interactive timeline cards -> Interaction: Click buttons to toggle Day 1/2 visibility -> Justification: Prevents information overload by allowing users to focus on one day at a time. Method: HTML/CSS/JS.
+        - Report Info: Department-wise participant distribution -> Goal: Compare/Inform -> Viz: Donut Chart -> Interaction: Hover tooltips show details -> Justification: A chart provides a much faster and more intuitive understanding of proportions than a text list. Library: Chart.js.
+        - Report Info: Expected Outcomes -> Goal: Inform -> Viz: Icon-based feature cards -> Interaction: Static display -> Justification: Visually reinforces the key skills participants will gain, making them scannable and memorable. Method: HTML/CSS with Unicode characters.
+        - Report Info: People (Facilitators/Coordinators) -> Goal: Inform -> Viz: Styled lists/cards -> Interaction: Static display -> Justification: Cleanly separates and presents the roles of the workshop staff. Method: HTML/CSS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .nav-btn.active {
+            background-color: #D3BFAB;
+            color: #FFFFFF;
+            font-weight: 600;
+        }
+        .nav-btn:not(.active):hover,
+        .nav-btn:not(.active):active {
+            background-color: #EFEAE4;
+        }
+        .day-toggle-btn {
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .day-toggle-btn.active {
+            background-color: #A69686;
+            color: #FFFFFF;
+        }
+        .day-toggle-btn:not(.active):hover,
+        .day-toggle-btn:not(.active):active {
+            background-color: #EFEAE4;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 250px;
+            }
+            
+            .mobile-stack {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .mobile-text-sm {
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+            }
+            
+            .mobile-p-4 {
+                padding: 1rem;
+            }
+            
+            .nav-btn {
+                min-height: 44px; /* iOS touch target minimum */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .day-toggle-btn {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 220px;
+            }
+        }
+        
+        /* Touch-friendly improvements */
+        button {
+            cursor: pointer;
+        }
+        
+        /* Prevent zoom on input focus in iOS */
+        input, select, textarea {
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-3 sm:p-4 lg:p-8 max-w-7xl">
+
+        <header class="text-center mb-6 sm:mb-8">
+            <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-[#6B5B4B] leading-tight">Inside the Frame: Introduction to VR</h1>
+            <p class="text-base sm:text-lg text-gray-600 mt-2">A Two-Day Immersive WebXR Workshop Plan</p>
+            <div class="mt-4 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-gray-500">
+                <span class="text-sm sm:text-base">🗓️ 22-23 August 2025</span>
+                <span class="text-sm sm:text-base">📍 Venue: Block 5 Room 110</span>
+            </div>
+        </header>
+
+        <nav class="flex justify-center mb-6 sm:mb-8 bg-[#EFEAE4] rounded-full p-1 max-w-sm sm:max-w-md mx-auto shadow-sm">
+            <button id="nav-schedule" class="nav-btn active w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Schedule</button>
+            <button id="nav-participants" class="nav-btn w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Participants</button>
+            <button id="nav-outcomes" class="nav-btn w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Outcomes</button>
+        </nav>
+
+        <main>
+            <div id="view-schedule">
+                <div class="text-center mb-6 sm:mb-8">
+                    <p class="max-w-3xl mx-auto text-gray-600 text-sm sm:text-base px-4">
+                        This section outlines the complete two-day schedule. The workshop is structured with theory and concept sessions in the morning, followed by hands-on project work in the afternoon. Use the buttons below to toggle between Day 1 and Day 2 to explore the detailed plan for each.
+                    </p>
+                    <div class="mt-4 flex justify-center space-x-2">
+                        <button id="day1-toggle" class="day-toggle-btn active py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base">Day 1</button>
+                        <button id="day2-toggle" class="day-toggle-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base">Day 2</button>
+                    </div>
+                </div>
+
+                <div id="day1-content">
+                    <h2 class="text-xl sm:text-2xl font-bold text-center text-[#A69686] mb-4 sm:mb-6">Day 1: Foundations & Scene Creation</h2>
+                    <div class="grid md:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h3 class="font-bold text-base sm:text-lg mb-1">Session 1: Theory & Setup</h3>
+                            <p class="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Morning Session</p>
+                            <div class="space-y-3 sm:space-y-4">
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">9:30 - 10:30 AM: Introduction to VR</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Krishna Priya</p>
+                                </div>
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">10:30 - 11:50 AM: Dev Environment & Intro to Three.js/WebXR</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Nikhil Katepally</p>
+                                </div>
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">11:50 AM - 1:00 PM: Blender & Open Brush Intro</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Prahalad Kuppa</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h3 class="font-bold text-base sm:text-lg mb-1">Session 2: Hands-On</h3>
+                            <p class="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Afternoon Session (1:50 - 3:50 PM)</p>
+                            <div class="p-3 sm:p-4 bg-emerald-50 rounded-md flex flex-col justify-center min-h-[100px] sm:min-h-[120px]">
+                                <p class="font-semibold text-emerald-800 mb-2 text-sm sm:text-base">Project Work: Scene Creation</p>
+                                <p class="text-xs sm:text-sm text-gray-600 leading-relaxed">Participants will begin painting their scene in Open Brush and composing it in Blender, applying the concepts learned in the morning session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="day2-content" class="hidden">
+                    <h2 class="text-xl sm:text-2xl font-bold text-center text-[#A69686] mb-4 sm:mb-6">Day 2: Interactivity & Hosting</h2>
+                    <div class="grid md:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h3 class="font-bold text-base sm:text-lg mb-1">Session 1: Theory & Setup</h3>
+                            <p class="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Morning Session</p>
+                            <div class="space-y-3 sm:space-y-4">
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">9:30 - 11:00 AM: Movement Logic & General Debugging</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Vansh Bhadani</p>
+                                </div>
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">11:00 AM - 12:30 PM: UI Design & Raypointer Interaction</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Keerthana Puvvada</p>
+                                </div>
+                                <div class="p-3 sm:p-4 bg-stone-50 rounded-md">
+                                    <p class="font-semibold text-sm sm:text-base">12:30 - 1:00 PM: GitHub Hosting</p>
+                                    <p class="text-xs sm:text-sm text-gray-600">Facilitator: Krishna Priya</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h3 class="font-bold text-base sm:text-lg mb-1">Session 2: Hands-On</h3>
+                            <p class="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">Afternoon Session (1:50 - 3:30 PM)</p>
+                            <div class="p-3 sm:p-4 bg-emerald-50 rounded-md flex flex-col justify-center min-h-[100px] sm:min-h-[120px]">
+                                <p class="font-semibold text-emerald-800 mb-2 text-sm sm:text-base">Project Work: Integration & Hosting</p>
+                                <p class="text-xs sm:text-sm text-gray-600 leading-relaxed">Participants will integrate movement logic and UI into their scenes, test navigation, and host their final projects on GitHub Pages.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-participants" class="hidden">
+                <div class="text-center mb-6 sm:mb-8">
+                    <p class="max-w-3xl mx-auto text-gray-600 text-sm sm:text-base px-4">
+                        This workshop brings together students and faculty to foster innovation in VR. Here you can find information about the target audience, the department-wise distribution of participants, and the dedicated team of facilitators and coordinators making this event possible.
+                    </p>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-6 sm:gap-8 items-start">
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                        <h2 class="text-lg sm:text-xl font-bold text-center text-[#A69686] mb-4">Participant Distribution</h2>
+                        <div class="chart-container">
+                            <canvas id="deptChart"></canvas>
+                        </div>
+                        <div class="flex justify-around text-center mt-4 text-xs sm:text-sm text-gray-600">
+                            <div><p class="font-bold text-base sm:text-lg">21</p><p>Total Participants</p></div>
+                            <div><p class="font-bold text-base sm:text-lg">7</p><p>Teams</p></div>
+                            <div><p class="font-bold text-base sm:text-lg">3</p><p>Members/Team</p></div>
+                        </div>
+                    </div>
+                    <div class="space-y-4 sm:space-y-6">
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h2 class="text-lg sm:text-xl font-bold text-[#A69686] mb-3">Resource People</h2>
+                            <ul class="space-y-2 text-gray-700 text-sm sm:text-base">
+                                <li><strong>Krishna Priya Choudoor:</strong> Assistant Professor, CSE-DS</li>
+                                <li><strong>Keerthana Puvvada:</strong> Student, 3rd year, CSE-DS</li>
+                                <li><strong>Nikhil Katepally:</strong> Student, 3rd year, CSE-DS</li>
+                                <li><strong>Prahalad Kuppa:</strong> Student, 3rd year, CSE-DS</li>
+                                <li><strong>Vansh Bhadani:</strong> Student, 3rd year, CSE</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200">
+                            <h2 class="text-lg sm:text-xl font-bold text-[#A69686] mb-3">Coordinators</h2>
+                            <ul class="space-y-2 text-gray-700 text-sm sm:text-base">
+                                <li><strong>Mrs. N. Madhavi:</strong> Assistant Professor, CSE-DS</li>
+                                <li><strong>Mrs. P. Sowmya Reddy:</strong> Assistant Professor, CSE-DS</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-outcomes" class="hidden">
+                <div class="text-center mb-6 sm:mb-8">
+                     <h2 class="text-xl sm:text-2xl font-bold text-[#A69686] mb-4">Expected Outcomes</h2>
+                    <p class="max-w-3xl mx-auto text-gray-600 text-sm sm:text-base px-4">
+                        By the end of this two-day workshop, participants will have gained hands-on experience and a foundational understanding of the WebXR development pipeline. The goal is to empower them to create and share their own immersive virtual reality experiences.
+                    </p>
+                </div>
+                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center">
+                        <span class="text-3xl sm:text-4xl">🧠</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Understand Core VR Concepts</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Grasp the fundamentals of the WebXR ecosystem and immersive design principles.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center">
+                        <span class="text-3xl sm:text-4xl">🎨</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Paint in Open Brush</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Learn how to create and export volumetric 3D artwork for use in VR scenes.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center">
+                        <span class="text-3xl sm:text-4xl">📦</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Compose Scenes in Blender</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Optimize and arrange 3D assets to build compelling and performant VR environments.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center">
+                        <span class="text-3xl sm:text-4xl">🖱️</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Build with Three.js/WebXR</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Develop a WebXR project with basic navigation and user interface interaction.</p>
+                    </div>
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center">
+                        <span class="text-3xl sm:text-4xl">🌐</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Host on GitHub Pages</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Manage and deploy a WebXR project, making it accessible to anyone with a browser.</p>
+                    </div>
+                     <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 text-center flex flex-col justify-center">
+                        <span class="text-3xl sm:text-4xl">🤝</span>
+                        <h3 class="font-bold text-base sm:text-lg mt-3">Collaborate in Teams</h3>
+                        <p class="text-xs sm:text-sm text-gray-600 mt-1">Experience the end-to-end development process in a collaborative team setting.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navButtons = {
+                schedule: document.getElementById('nav-schedule'),
+                participants: document.getElementById('nav-participants'),
+                outcomes: document.getElementById('nav-outcomes'),
+            };
+
+            const views = {
+                schedule: document.getElementById('view-schedule'),
+                participants: document.getElementById('view-participants'),
+                outcomes: document.getElementById('view-outcomes'),
+            };
+
+            const dayToggles = {
+                day1: document.getElementById('day1-toggle'),
+                day2: document.getElementById('day2-toggle'),
+            };
+
+            const dayContents = {
+                day1: document.getElementById('day1-content'),
+                day2: document.getElementById('day2-content'),
+            };
+
+            let chartInstance = null;
+
+            function switchView(viewName) {
+                Object.values(views).forEach(view => view.classList.add('hidden'));
+                Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
+
+                views[viewName].classList.remove('hidden');
+                navButtons[viewName].classList.add('active');
+
+                if (viewName === 'participants' && !chartInstance) {
+                    renderChart();
+                }
+            }
+
+            function switchDay(day) {
+                Object.values(dayContents).forEach(content => content.classList.add('hidden'));
+                Object.values(dayToggles).forEach(btn => btn.classList.remove('active'));
+
+                dayContents[day].classList.remove('hidden');
+                dayToggles[day].classList.add('active');
+            }
+
+            navButtons.schedule.addEventListener('click', () => switchView('schedule'));
+            navButtons.participants.addEventListener('click', () => switchView('participants'));
+            navButtons.outcomes.addEventListener('click', () => switchView('outcomes'));
+
+            dayToggles.day1.addEventListener('click', () => switchDay('day1'));
+            dayToggles.day2.addEventListener('click', () => switchDay('day2'));
+
+            function renderChart() {
+                const ctx = document.getElementById('deptChart').getContext('2d');
+                const participantData = {
+                    labels: ['CSE', 'DS', 'AI & ML', 'CS'],
+                    datasets: [{
+                        label: 'Participants',
+                        data: [6, 6, 6, 3],
+                        backgroundColor: [
+                            '#A69686',
+                            '#D3BFAB',
+                            '#6B5B4B',
+                            '#EFEAE4',
+                        ],
+                        borderColor: '#FDFBF8',
+                        borderWidth: 4,
+                        hoverOffset: 8
+                    }]
+                };
+
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: participantData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        family: 'Inter',
+                                        size: 14,
+                                    },
+                                    color: '#4A4A4A',
+                                    padding: 20,
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += context.parsed + ' participants';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            switchView('schedule');
+            switchDay('day1');
+        });
+    </script>
+</body>
+</html>
