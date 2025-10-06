@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inside the Frame: VR Workshop Plan</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js will be loaded lazily only when Participants tab is opened for better mobile performance -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="theme-color" content="#FDFBF8" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
     <!-- Chosen Palette: Warm Harmony -->
     <!-- Application Structure Plan: A tabbed, single-page application structure was chosen to organize the workshop information into logical, digestible sections: Schedule, Participants, and Outcomes. This is more user-friendly than a long, scrolling document. The default view is the schedule, as it's the primary information. Users can easily navigate to see who is involved or what the goals are. Interactive elements, like the clickable day toggles and the data chart, are used to present dense information clearly and engage the user. This structure prioritizes ease of navigation and quick access to key information. -->
     <!-- Visualization & Content Choices: 
@@ -17,12 +21,21 @@
     -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
+        :root {
+            /* Utilize safe area insets on iOS */
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+            --safe-left: env(safe-area-inset-left);
+            --safe-right: env(safe-area-inset-right);
+        }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #FDFBF8;
             color: #4A4A4A;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            padding-top: max(var(--safe-top), 0px);
+            padding-bottom: max(var(--safe-bottom), 0px);
         }
         .nav-btn {
             transition: all 0.3s ease;
@@ -95,12 +108,28 @@
                 align-items: center;
                 justify-content: center;
             }
+            .sticky-mobile-nav {
+                position: sticky;
+                top: calc(var(--safe-top) + 0px);
+                z-index: 40;
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
         }
         
         @media (max-width: 640px) {
             .chart-container {
                 height: 220px;
             }
+            /* Reduce large heading size a bit on very small devices */
+            h1 { font-size: 1.95rem; }
+            .nav-btn { font-size: 0.85rem; }
+            .day-toggle-btn { font-size: 0.85rem; }
+        }
+
+        @media (max-width: 400px) {
+            h1 { font-size: 1.75rem; }
+            .container { padding-left: 0.75rem; padding-right: 0.75rem; }
         }
         
         /* Touch-friendly improvements */
@@ -127,7 +156,7 @@
             </div>
         </header>
 
-        <nav class="flex justify-center mb-6 sm:mb-8 bg-[#EFEAE4] rounded-full p-1 max-w-sm sm:max-w-md mx-auto shadow-sm">
+        <nav class="flex justify-center mb-6 sm:mb-8 bg-[#EFEAE4] rounded-full p-1 max-w-sm sm:max-w-md mx-auto shadow-sm sticky-mobile-nav">
             <button id="nav-schedule" class="nav-btn active w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Schedule</button>
             <button id="nav-participants" class="nav-btn w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Participants</button>
             <button id="nav-outcomes" class="nav-btn w-1/3 py-2 px-2 sm:px-4 rounded-full text-center text-sm sm:text-base">Outcomes</button>
@@ -327,7 +356,7 @@
                 navButtons[viewName].classList.add('active');
 
                 if (viewName === 'participants' && !chartInstance) {
-                    renderChart();
+                    ensureChartLibrary().then(renderChart).catch(err => console.error('Chart load failed', err));
                 }
             }
 
@@ -345,6 +374,27 @@
 
             dayToggles.day1.addEventListener('click', () => switchDay('day1'));
             dayToggles.day2.addEventListener('click', () => switchDay('day2'));
+
+            let chartLibLoading = false;
+            function ensureChartLibrary() {
+                return new Promise((resolve, reject) => {
+                    if (window.Chart) return resolve();
+                    if (chartLibLoading) {
+                        const checkInterval = setInterval(() => {
+                            if (window.Chart) { clearInterval(checkInterval); resolve(); }
+                        }, 50);
+                        setTimeout(() => { clearInterval(checkInterval); if (!window.Chart) reject(new Error('Chart.js load timeout')); }, 5000);
+                        return;
+                    }
+                    chartLibLoading = true;
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    script.async = true;
+                    script.onload = () => { resolve(); };
+                    script.onerror = () => reject(new Error('Failed to load Chart.js'));
+                    document.head.appendChild(script);
+                });
+            }
 
             function renderChart() {
                 const ctx = document.getElementById('deptChart').getContext('2d');
@@ -374,14 +424,14 @@
                         cutout: '60%',
                         plugins: {
                             legend: {
-                                position: 'bottom',
+                                position: (window.innerWidth < 500 ? 'right' : 'bottom'),
                                 labels: {
                                     font: {
                                         family: 'Inter',
-                                        size: 14,
+                                        size: (window.innerWidth < 500 ? 11 : 14),
                                     },
                                     color: '#4A4A4A',
-                                    padding: 20,
+                                    padding: (window.innerWidth < 500 ? 10 : 20),
                                 }
                             },
                             tooltip: {
